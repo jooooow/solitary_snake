@@ -1,0 +1,508 @@
+<html>
+    <head>
+    <title>Canvas Animation</title>
+    <meta http-equiv="content-type" content="text/html;charset=utf-8">
+    <link rel="stylesheet" href="test_style.css">
+	</head>
+    <body>
+	
+	<div class = "game_div">
+		<div class="div1">
+			<canvas id="canvas" width="600" height="600"></canvas>
+		</div>
+		<div class="score">
+			<div><text>SCORE : </text><input id="score" value = "0" class = "score_input"></input></div>
+		</div>
+		<div class="parameters">
+			<div><text>TIME : </text><input id="time_left" value = "1000"></input></div>
+		</div>
+		<div class="div2">
+			<canvas id="time_canvas" width="600" height="50"></canvas>
+		</div>
+	</div>
+	<div class = "table_div">
+		<div class="best">
+			<div><text>BEST : </text><input id="best" value = "0"></input></div>
+		</div>
+		<div class = "score_table_div">
+			<table id = "score_table">
+				<tr>
+					<th class = "score_table_th">GEN</th>
+					<th class = "score_table_th">SCORE</th>
+				</tr>
+			</table>
+		</div>
+		<div class = "Q_table_div">
+			<table id = "q_table">
+				<tr>
+					<th class = "q_table_th">STA</th>
+					<th class = "q_table_th">UP</th>
+					<th class = "q_table_th">DOWN</th>
+					<th class = "q_table_th">LEFT</th>
+					<th class = "q_table_th">RIGHT</th>
+				</tr>
+			</table>
+		</div>
+	</div>
+        <script>
+			function FreshQtableElement(row,cell,value)
+			{
+				var th = q_table_table.rows[row + 1].cells[cell + 1];
+				th.innerHTML = value;
+			}
+			
+			function FreshQtable()
+			{
+				q_table_table.innerHTML = '<tr><th class = "q_table_th">STA</th><th class = "q_table_th">UP</th><th class = "q_table_th">DOWN</th><th class = "q_table_th">LEFT</th><th class = "q_table_th">RIGHT</th></tr>';
+				for(k = 0; k < 512; k++)
+				{
+					var add_html = '<td class = "score_table_th">' + k + '</td>';
+					for(var m = 0; m < 4; m++)
+						add_html += '<td class = "score_table_th">' + Q_table[k][m] + '</td>';
+					q_table_table.innerHTML += '<tr>' + add_html + '</tr>';
+				}
+			}
+			
+			var canvas = document.getElementById("canvas");
+			var time_canvas = document.getElementById("time_canvas");
+			var score_table = document.getElementById("score_table");
+			var q_table_table = document.getElementById("q_table");
+			var time_div = document.getElementById("time_left");
+			var best_score_input = document.getElementById("best");
+			var score_div = document.getElementById("score");
+			var time_ctx = time_canvas.getContext("2d");
+            var ctx = canvas.getContext("2d");
+			
+			
+			/*初始化Q_table*/
+			var Q_table = new Array(512);
+			for(var k = 0; k < 512; k++)
+			{
+				Q_table[k] = new Array(4);
+				Q_table[k][0] = 0;
+				Q_table[k][1] = 0;
+				Q_table[k][2] = 0;
+				Q_table[k][3] = 0;
+			}
+			FreshQtable();
+			
+			var tar_dir = 'U';
+			var snake_dir = 'U';
+			var snake_pos;
+			var snake_length = 0;
+			var esa_pos_x = 0;
+			var esa_pos_y = 0;
+			var new_head = new Array(2);
+			
+			/*游戏控制*/
+			var time_id = 0;
+			var game_being = 0;
+			var left_time = 1000;
+			var score = 0;
+			var gen = 1;
+			var best_score = 0;
+
+			function InitSnakePos()
+			{
+				snake_pos = new Array();
+				snake_pos[0] = new Array(2);
+				snake_pos[0][0] = 300;
+				snake_pos[0][1] = 300;
+				snake_pos[1] = new Array(2);
+				snake_pos[1][0] = 300;
+				snake_pos[1][1] = 320;
+				snake_length = 2;
+				esa_pos_x = 320;
+				esa_pos_y = 220;
+				tar_dir = 'U';
+			    snake_dir = 'U';
+				left_time = 1000;
+				score = 0;
+				score_div.value = score;
+			}
+
+			function IsEsaInSnake(x,y,snake,index)
+			{
+				for(var j = index; j < snake.length; j++)
+				{
+					if(snake[j][0] == x && snake[j][1] == y)
+						return 1;
+				}
+				return 0;
+			}
+			
+			/*线段是否相交*/
+			function IsBanana(ax,ay,bx,by,cx,cy,dx,dy)
+			{
+				//线段ab的法线N1 
+				 var nx1 = (by - ay), ny1 = (ax - bx); 
+				  
+				 //线段cd的法线N2 
+				 var nx2 = (dy - cy), ny2 = (cx - dx); 
+				  
+				 //两条法线做叉乘, 如果结果为0, 说明线段ab和线段cd平行或共线,不相交 
+				 var denominator = nx1*ny2 - ny1*nx2; 
+				 if (denominator==0) { 
+				 return false; 
+				 } 
+				  
+				 //在法线N2上的投影 
+				 var distC_N2=nx2 * cx + ny2 * cy; 
+				 var distA_N2=nx2 * ax + ny2 * ay-distC_N2; 
+				 var distB_N2=nx2 * bx + ny2 * by-distC_N2; 
+				  
+				 // 点a投影和点b投影在点c投影同侧 (对点在线段上的情况,本例当作不相交处理); 
+				 if ( distA_N2*distB_N2>=0 ) { 
+				 return false; 
+				 } 
+				  
+				 // 
+				 //判断点c点d 和线段ab的关系, 原理同上 
+				 // 
+				 //在法线N1上的投影 
+				 var distA_N1=nx1 * ax + ny1 * ay; 
+				 var distC_N1=nx1 * cx + ny1 * cy-distA_N1; 
+				 var distD_N1=nx1 * dx + ny1 * dy-distA_N1; 
+				 if ( distC_N1*distD_N1>=0 ) { 
+				 return false; 
+				 } 
+				  
+				 //计算交点坐标 
+				 var fraction= distA_N2 / denominator; 
+				 var dx= fraction * ny1, 
+				 dy= -fraction * nx1; 
+				 return true; 
+			}
+			
+			function s_s()
+			{
+				console.log("game_being : " + game_being);
+				if(game_being)
+				{
+					clearInterval(time_id);
+					game_being = 0;
+					console.log("pause");
+				}
+				else
+				{
+					time_id = setInterval(Run,10);
+					game_being = 1;
+					console.log("resume");
+				}
+			}
+			
+			function Restart()
+			{
+				if(score > best_score)
+				{
+					best_score = score;
+					best_score_input.value = best_score;
+				}
+				score_table.innerHTML += '<tr><td class = "score_table_th">' + gen + '</td><td class = "score_table_th">' + score + '</td></tr>';
+				score_div.value = "YOU DEAD";
+				s_s();
+				setTimeout(function(){
+					InitSnakePos();
+					s_s();
+					gen++;
+				},20);
+			}
+			
+			function NextMoveByMe()
+			{
+				snake_dir = tar_dir;
+				console.log("HIT------------------------");
+				var hit_body = IsAboutToHitBody(new_head);
+				console.log("hit_body : " + hit_body);
+				console.log("------------------------");
+			}
+			
+			function IsAboutToHitBody(head)
+			{
+				var temp_x = head[0];
+				var temp_y = head[1];
+				var hit_pos = 0;
+				var a,b,c,d;
+				a = IsEsaInSnake(temp_x-20,temp_y  ,snake_pos,2); //左
+				b = IsEsaInSnake(temp_x  ,temp_y-20,snake_pos,2); //上
+				c = IsEsaInSnake(temp_x  ,temp_y+20,snake_pos,2); //下
+				d = IsEsaInSnake(temp_x+20,temp_y  ,snake_pos,2); //右
+				var hit = [a,b,c,d];
+				return hit;
+			}
+			
+			
+			/*Q相关函数*/
+			var max_index = 0;
+			var cur_q_arr = 0;
+			var sta_id = 0;
+			function NextMoveByQ()
+			{
+				var new_sta = [0,0,0,0,0,0,0,0,0];
+				
+				/*判断头朝向*/
+				if(snake_dir == 'U')
+				{
+					new_sta[0] = 0;
+					new_sta[1] = 0;
+				}
+				else if(snake_dir == 'D')
+				{
+					new_sta[0] = 0;
+					new_sta[1] = 1;
+				}
+				else if(snake_dir == 'L')
+				{
+					new_sta[0] = 1;
+					new_sta[1] = 0;
+				}
+				else if(snake_dir == 'R')
+				{
+					new_sta[0] = 1;
+					new_sta[1] = 1;
+				}
+				
+				/*判断食物方向*/
+				if(new_head[0] == esa_pos_x && new_head[1] >= esa_pos_y)//上
+				{
+					new_sta[2] = 0;
+					new_sta[3] = 0;
+					new_sta[4] = 0;
+				}
+				else if(new_head[0] == esa_pos_x && new_head[1] <= esa_pos_y)//下
+				{
+					new_sta[2] = 0;
+					new_sta[3] = 0;
+					new_sta[4] = 1;
+				}
+				if(new_head[1] == esa_pos_y && new_head[0] >= esa_pos_x)//左
+				{
+					new_sta[2] = 0;
+					new_sta[3] = 1;
+					new_sta[4] = 0;
+				}
+				else if(new_head[1] == esa_pos_y && new_head[0] <= esa_pos_x)//右
+				{
+					new_sta[2] = 0;
+					new_sta[3] = 1;
+					new_sta[4] = 1;
+				}
+				if(new_head[0] > esa_pos_x && new_head[1] > esa_pos_y)//上左
+				{
+					new_sta[2] = 1;
+					new_sta[3] = 0;
+					new_sta[4] = 0;
+				}
+				else if(new_head[0] > esa_pos_x && new_head[1] < esa_pos_y)//下左
+				{
+					new_sta[2] = 1;
+					new_sta[3] = 0;
+					new_sta[4] = 1;
+				}
+				if(new_head[1] > esa_pos_y && new_head[0] < esa_pos_x)//上右
+				{
+					new_sta[2] = 1;
+					new_sta[3] = 1;
+					new_sta[4] = 0;
+				}
+				else if(new_head[1] < esa_pos_y && new_head[0] < esa_pos_x)//下右
+				{
+					new_sta[2] = 1;
+					new_sta[3] = 1;
+					new_sta[4] = 1;
+				}
+				
+				/*判断障碍位置*/
+				var hit_body = IsAboutToHitBody(new_head);
+				console.log("hit_body : " + hit_body);
+				new_sta[5] = hit_body[0];
+				new_sta[6] = hit_body[1];
+				new_sta[7] = hit_body[2];
+				new_sta[8] = hit_body[3];
+				
+				if(new_head[0] - 20 <= 0) //左
+					new_sta[5] = 0;
+				if(new_head[1] - 20 <= 0) //上
+					new_sta[6] = 0;
+				if(new_head[1] + 20 >= 580) //下
+					new_sta[7] = 0;
+				if(new_head[0] + 20 >= 580) //右
+					new_sta[8] = 0;
+				
+				sta_id = 0;
+				for(var ii = 9-1; ii >= 0; ii--)
+					sta_id += new_sta[ii] * Math.pow(2,ii);
+				console.log("sta_id : " + sta_id);
+				
+				/*查找最大值*/
+				cur_q_arr = Q_table[sta_id];
+				max_index = 0;
+				for(var jj = 0; jj < 4; jj++)
+				{
+					if(cur_q_arr[jj] > cur_q_arr[max_index])
+						max_index = jj;
+				}
+				var cur_max_value = cur_q_arr[max_index];
+				console.log("max : " + max_index + " : " + cur_max_value);
+				
+				if(cur_q_arr[0] == 0 && cur_q_arr[1] == 0 && cur_q_arr[2] == 0 && cur_q_arr[3] == 0)
+				{
+					max_index = parseInt(Math.random() * 20) % 4;
+				}
+				else
+				{
+					max_index = max_index;
+				}
+				
+				console.log("CHOSED---Q : " + cur_q_arr[max_index]);
+				
+				/*选择动作*/
+				if(max_index == 0 && snake_dir != 'D')
+					snake_dir = 'U';
+				else if(max_index == 1 && snake_dir != 'U')
+					snake_dir = 'D';
+				else if(max_index == 2 && snake_dir != 'R')
+					snake_dir = 'L';
+				else if(max_index == 3 && snake_dir != 'L')
+					snake_dir = 'R';
+			}
+			
+			function Run()
+			{
+				left_time -= 5;
+				/*时间尽*/
+				if(left_time <= 10)
+				{
+					console.log("!!!!SHIJIANMEILE!!!");
+					cur_q_arr[max_index] = cur_q_arr[max_index] - 100;
+					FreshQtableElement(sta_id,max_index,cur_q_arr[max_index]);
+					Restart();
+					return;
+				}
+				
+				time_div.value = left_time;
+				
+				ctx.clearRect(0,0,600,600);
+				
+				/*人动作控制*/
+				//NextMoveByMe();
+				
+				/*Q_table动作控制*/
+				NextMoveByQ();
+				
+				new_head = new Array(2);
+				new_head[0] = snake_pos[0][0];
+				new_head[1] = snake_pos[0][1];
+
+				for(var i = snake_length - 1; i > 0; i--)
+				{
+					snake_pos[i] = snake_pos[i - 1];
+				}
+				
+
+				if(snake_dir == 'R')
+					new_head[0] = new_head[0] + 20;
+				else if(snake_dir == 'L')
+					new_head[0] = new_head[0] - 20;
+				else if(snake_dir == 'U')
+					new_head[1] = new_head[1] - 20;
+				else if(snake_dir == 'D')
+					new_head[1] = new_head[1] + 20;
+				snake_pos[0] = new_head;
+				
+				/*撞墙*/
+				if(new_head[0] < 0 || new_head[0] > 580 || new_head[1] < 0 || new_head[1] > 580)
+				{
+					console.log("!!!!!ZHUANG QIANG!!!");
+					cur_q_arr[max_index] = cur_q_arr[max_index] - 300;
+					FreshQtableElement(sta_id,max_index,cur_q_arr[max_index]);;
+					Restart();
+					return;
+				}
+				/*吃自己*/
+				if(IsEsaInSnake(new_head[0],new_head[1],snake_pos,1))
+				{
+					console.log("!!!!!!CHIZIJI!!!");
+					cur_q_arr[max_index] = cur_q_arr[max_index] - 100;
+					FreshQtableElement(sta_id,max_index,cur_q_arr[max_index]);;
+					Restart();
+					return;
+				}
+				
+				if(snake_pos[0][0] == esa_pos_x && snake_pos[0][1] == esa_pos_y)
+				{
+					cur_q_arr[max_index] = cur_q_arr[max_index] + 600 + parseInt(left_time / 20);
+					FreshQtableElement(sta_id,max_index,cur_q_arr[max_index]);
+					left_time += 300;
+					score += 50;
+					score_div.value = score;
+					
+					if(left_time > 1000)
+						left_time = 1000;
+					console.log("TABETA!" + snake_length);
+					snake_pos[snake_length] = new Array(2);
+					snake_length++;
+					for(var i = snake_length - 1; i > 0; i--)
+					{
+						snake_pos[i][0] = snake_pos[i - 1][0];
+						snake_pos[i][1] = snake_pos[i - 1][1];
+					}
+					if(snake_dir == 'R')
+						snake_pos[0][0] = esa_pos_x + 20;
+					else if(snake_dir == 'L')
+						snake_pos[0][0] = esa_pos_x - 20;
+					else if(snake_dir == 'U')
+						snake_pos[0][1] = esa_pos_y - 20;
+					else if(snake_dir == 'D')
+						snake_pos[0][1] = esa_pos_y + 20;
+					
+					var esa = new Array(2);
+					do
+					{
+						esa_pos_x = parseInt(Math.random() * 580) % 20 * 20 + 40;
+						esa_pos_y = parseInt(Math.random() * 580) % 20 * 20 + 40;
+						esa[0] = esa_pos_x;
+						esa[1] = esa_pos_y;
+						//console.log("new eas : " + esa_pos_x + "," + esa_pos_y + " snake_pos.includes(esa) : " + snake_pos.includes(esa));
+					}while(IsEsaInSnake(esa,snake_pos,0));
+				}
+				
+				for(i = 0; i < snake_length; i++)
+				{
+					ctx.fillRect(snake_pos[i][0],snake_pos[i][1],20,20);
+				}
+				ctx.fillRect(esa_pos_x,esa_pos_y,20,20);
+				
+				time_ctx_width = left_time / 1000 * 600;
+				time_ctx.clearRect(0,0,600,20);
+				time_ctx.fillRect(0,0,time_ctx_width,20);
+			}
+			
+			document.onkeydown = function(event){
+				var e = event || window.event || arguments.callee.caller.arguments[0];
+				console.log(e.keyCode);
+				if(game_being)
+				{
+					if(e.keyCode == 37 && snake_dir != 'R')
+						tar_dir = 'L';
+					if(e.keyCode == 38 && snake_dir != 'D')
+						tar_dir = 'U';
+					if(e.keyCode == 39 && snake_dir != 'L')
+						tar_dir = 'R';
+					if(e.keyCode == 40 && snake_dir != 'U')
+						tar_dir = 'D';
+				}
+				
+				if(e.keyCode == 80)
+					s_s();
+					
+				if(e.keyCode == 82)
+					Restart();
+			}; 
+			
+			InitSnakePos();
+			s_s();
+
+        </script>
+    </body>
+</html>
