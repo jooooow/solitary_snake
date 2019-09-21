@@ -1,2 +1,2 @@
-使用QNet训练贪吃蛇和自己玩
-目前最高2500分(300gen)
+锘縰sing Q-net to train the snake to paly with itself
+best score 2500(No.300 Gen)
