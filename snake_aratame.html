@@ -22,7 +22,7 @@
 	</div>
 	<div class = "table_div">
 		<div class="best">
-			<div><text>BEST : </text><input id="best" value = "0"></input></div>
+			<div><text class = "best_score">BEST : </text><input id="best" value = "0" class = "best_score_input"></input></div>
 		</div>
 		<div class = "score_table_div">
 			<table id = "score_table">
@@ -66,6 +66,7 @@
 			var canvas = document.getElementById("canvas");
 			var time_canvas = document.getElementById("time_canvas");
 			var score_table = document.getElementById("score_table");
+			var score_table_div = document.getElementById("score_table_div");
 			var q_table_table = document.getElementById("q_table");
 			var time_div = document.getElementById("time_left");
 			var best_score_input = document.getElementById("best");
@@ -93,6 +94,8 @@
 			var esa_pos_x = 0;
 			var esa_pos_y = 0;
 			var new_head = new Array(2);
+			var esa_distance = 0;
+			var old_esa_distance = 0;
 			
 			/*游戏控制*/
 			var time_id = 0;
@@ -112,8 +115,8 @@
 				snake_pos[1][0] = 300;
 				snake_pos[1][1] = 320;
 				snake_length = 2;
-				esa_pos_x = 320;
-				esa_pos_y = 220;
+				esa_pos_x = 240;
+				esa_pos_y = 80;
 				tar_dir = 'U';
 			    snake_dir = 'U';
 				left_time = 1000;
@@ -185,7 +188,7 @@
 				}
 				else
 				{
-					time_id = setInterval(Run,10);
+					time_id = setInterval(Run,2);
 					game_being = 1;
 					console.log("resume");
 				}
@@ -198,14 +201,15 @@
 					best_score = score;
 					best_score_input.value = best_score;
 				}
-				score_table.innerHTML += '<tr><td class = "score_table_th">' + gen + '</td><td class = "score_table_th">' + score + '</td></tr>';
+				var new_score = score_table.insertRow(1);
+				new_score.innerHTML += '<tr><td class = "score_table_th">' + gen + '</td><td class = "score_table_th">' + score + '</td></tr>';
 				score_div.value = "YOU DEAD";
 				s_s();
 				setTimeout(function(){
 					InitSnakePos();
 					s_s();
 					gen++;
-				},20);
+				},2);
 			}
 			
 			function NextMoveByMe()
@@ -231,6 +235,21 @@
 				return hit;
 			}
 			
+			function SelectIndex(w_arr,rand_val)
+			{
+				/*if(rand_val > 1 - w_arr[0][0])	return w_arr[0][1];
+				if(rand_val > 1 - w_arr[1][0])	return w_arr[1][1];
+				if(rand_val > 1 - w_arr[2][0])	return w_arr[2][1];
+				return w_arr[3][1];*/
+				if(rand_val > 0 && rand_val <= w_arr[0][0])
+					return w_arr[0][1];
+				else if(rand_val > w_arr[0][0]&& rand_val <= w_arr[1][0])
+					return w_arr[1][1];
+				else if(rand_val > w_arr[1][0] && rand_val <= w_arr[2][0])
+					return w_arr[2][1];
+				else
+					return w_arr[3][1];
+			}
 			
 			/*Q相关函数*/
 			var max_index = 0;
@@ -327,14 +346,15 @@
 				if(new_head[1] + 20 >= 580) //下
 					new_sta[7] = 0;
 				if(new_head[0] + 20 >= 580) //右
-					new_sta[8] = 0;
+					new_sta[8] = 0;	
+				
 				
 				sta_id = 0;
 				for(var ii = 9-1; ii >= 0; ii--)
 					sta_id += new_sta[ii] * Math.pow(2,ii);
 				console.log("sta_id : " + sta_id);
 				
-				/*查找最大值*/
+				/*选择Q值*/
 				cur_q_arr = Q_table[sta_id];
 				max_index = 0;
 				for(var jj = 0; jj < 4; jj++)
@@ -354,7 +374,61 @@
 					max_index = max_index;
 				}
 				
-				console.log("CHOSED---Q : " + cur_q_arr[max_index]);
+				/*计算权重*/
+				//var temp_cur_q_arr = cur_q_arr;
+				//cur_q_arr_w = [0,0,0,0];
+				//var cur_q_arr_sum = 0;
+				///*找最小值*/
+				//var min_index = 0;
+				//for(var jjj = 0; jjj < 4; jjj++)
+				//{
+				//	if(temp_cur_q_arr[jjj] < temp_cur_q_arr[min_index])
+				//		min_index = jjj;
+				//}
+				//for(jjj = 0; jjj < 4; jjj++)
+				//{
+				//	temp_cur_q_arr[jjj] -= temp_cur_q_arr[min_index]
+				//}
+				//
+				//for(jjj = 0; jjj < 4; jjj++)
+				//{
+				//	cur_q_arr_sum += temp_cur_q_arr[jjj];
+				//}
+				//cur_q_arr_w[0] = temp_cur_q_arr[0] / cur_q_arr_sum;
+				//cur_q_arr_w[1] = temp_cur_q_arr[1] / cur_q_arr_sum;
+				//cur_q_arr_w[2] = temp_cur_q_arr[2] / cur_q_arr_sum;
+				//cur_q_arr_w[3] = temp_cur_q_arr[3] / cur_q_arr_sum;
+				//
+				///*重新划分权重*/
+				//var w_redistribution = 0;
+				//var max_w = 0.98;
+				//for(jjj = 0; jjj < 4; jjj++)
+				//{
+				//	if(cur_q_arr_w[jjj] > cur_q_arr_w[max_index])
+				//		max_index = jjj;
+				//}
+				//if(cur_q_arr_w[max_index] > max_w)
+				//{
+				//	w_redistribution = cur_q_arr_w[max_index] - max_w;
+				//	cur_q_arr_w[max_index] = max_w;
+				//	for(jjj = 0; jjj < 4; jjj++)
+				//	{
+				//		if(jjj != max_index)
+				//			cur_q_arr_w[jjj] += w_redistribution / 3;
+				//	}
+				//}
+				//console.log(cur_q_arr_w);
+				//
+				///*根据概率选择Q值*/
+				//var rand = Math.random();
+				//max_index = 0;
+				//var new_cur_q_arr_w = [[cur_q_arr_w[0],0],[cur_q_arr_w[1],1],[cur_q_arr_w[2],2],[cur_q_arr_w[3],3]];
+				//new_cur_q_arr_w.sort(function(a,b){
+				//	return b[0] - a[0];
+				//});
+				//max_index = SelectIndex(new_cur_q_arr_w,rand);
+				
+				//console.log("rand : " + rand + " CHOSED---Q : [" + max_index + "] Q :" + cur_q_arr[max_index]);
 				
 				/*选择动作*/
 				if(max_index == 0 && snake_dir != 'D')
@@ -370,11 +444,14 @@
 			function Run()
 			{
 				left_time -= 5;
+				cur_q_arr[max_index] = cur_q_arr[max_index] + 1;
+				FreshQtableElement(sta_id,max_index,cur_q_arr[max_index]);
+				
 				/*时间尽*/
 				if(left_time <= 10)
 				{
 					console.log("!!!!SHIJIANMEILE!!!");
-					cur_q_arr[max_index] = cur_q_arr[max_index] - 100;
+					cur_q_arr[max_index] = cur_q_arr[max_index] - 10;
 					FreshQtableElement(sta_id,max_index,cur_q_arr[max_index]);
 					Restart();
 					return;
@@ -415,7 +492,7 @@
 				{
 					console.log("!!!!!ZHUANG QIANG!!!");
 					cur_q_arr[max_index] = cur_q_arr[max_index] - 300;
-					FreshQtableElement(sta_id,max_index,cur_q_arr[max_index]);;
+					FreshQtableElement(sta_id,max_index,cur_q_arr[max_index]);
 					Restart();
 					return;
 				}
@@ -423,15 +500,30 @@
 				if(IsEsaInSnake(new_head[0],new_head[1],snake_pos,1))
 				{
 					console.log("!!!!!!CHIZIJI!!!");
-					cur_q_arr[max_index] = cur_q_arr[max_index] - 100;
-					FreshQtableElement(sta_id,max_index,cur_q_arr[max_index]);;
+					cur_q_arr[max_index] = cur_q_arr[max_index] - 200;
+					FreshQtableElement(sta_id,max_index,cur_q_arr[max_index]);
 					Restart();
 					return;
 				}
 				
+				/*进了一步*/
+				esa_distance = Math.sqrt(Math.pow((new_head[0] - esa_pos_x),2) + Math.pow((new_head[1] - esa_pos_y),2));
+				console.log("esa_distance : " + esa_distance);
+				if(esa_distance < old_esa_distance)      //变近
+				{
+					cur_q_arr[max_index] = cur_q_arr[max_index] + 50;
+					FreshQtableElement(sta_id,max_index,cur_q_arr[max_index]);
+				}
+				else if(esa_distance > old_esa_distance) //变远
+				{
+					cur_q_arr[max_index] = cur_q_arr[max_index] - 20;
+					FreshQtableElement(sta_id,max_index,cur_q_arr[max_index]);
+				}
+				
+				/*吃到*/
 				if(snake_pos[0][0] == esa_pos_x && snake_pos[0][1] == esa_pos_y)
 				{
-					cur_q_arr[max_index] = cur_q_arr[max_index] + 600 + parseInt(left_time / 20);
+					cur_q_arr[max_index] = cur_q_arr[max_index] + 200 + parseInt(left_time / 10);
 					FreshQtableElement(sta_id,max_index,cur_q_arr[max_index]);
 					left_time += 300;
 					score += 50;
@@ -459,8 +551,8 @@
 					var esa = new Array(2);
 					do
 					{
-						esa_pos_x = parseInt(Math.random() * 580) % 20 * 20 + 40;
-						esa_pos_y = parseInt(Math.random() * 580) % 20 * 20 + 40;
+						esa_pos_x = parseInt(Math.random() * 560 / 20) * 20 + 20;
+						esa_pos_y = parseInt(Math.random() * 560 / 20) * 20 + 20;
 						esa[0] = esa_pos_x;
 						esa[1] = esa_pos_y;
 						//console.log("new eas : " + esa_pos_x + "," + esa_pos_y + " snake_pos.includes(esa) : " + snake_pos.includes(esa));
@@ -476,6 +568,8 @@
 				time_ctx_width = left_time / 1000 * 600;
 				time_ctx.clearRect(0,0,600,20);
 				time_ctx.fillRect(0,0,time_ctx_width,20);
+				
+				old_esa_distance = esa_distance;
 			}
 			
 			document.onkeydown = function(event){
